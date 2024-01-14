@@ -112,6 +112,46 @@ float hit_triangle(const point3_t vertices[3], const ray_t& r, float t_min, floa
 	return -1.0f;
 }
 
+float hit_plane(float p, const vec3_t& normal, const ray_t& r, float t_min, float t_max)
+{
+	// f(x) = x * n - c = 0
+	// x = o + t * d
+	// (1), (2) => (o + t * d) * n - c = 0
+	//
+	
+	static constexpr float epsilon = 1e-8f;
+	float denominator = dot(r.direction, normal);
+
+	if(fabs(denominator) < epsilon) return -1.0f;
+
+	vec3_t origin{r.origin.x, r.origin.y, r.origin.z};
+
+	float t = (p - dot(origin, normal)) / denominator;
+
+	if(t > t_min && t < t_max) return t;
+	return -1.0f;
+}
+
+float hit_plane2(const point3_t& p, const vec3_t& normal, const ray_t& r, float t_min, float t_max)
+{
+	// n(x - x0) = 0
+	// x*n - n*x0 = 0
+	// n*o + n * t * d - n * x0 = 0
+	// t = ((n * x0) - (n * o)) / n * d
+
+	static constexpr float epsilon = 1e-8f;
+	float denominator = dot(r.direction, normal);
+
+	if(fabs(denominator) < epsilon) return -1.0f;
+
+	vec3_t origin{r.origin.x, r.origin.y, r.origin.z};
+	vec3_t point{p.x, p.y, p.z};
+
+	float t = (dot(normal, point) - dot(normal, origin)) / denominator;
+	if(t > t_min && t < t_max) return t;
+	return -1.0f;
+}
+
 color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 {
 	color_t pixel_color = {};
@@ -173,6 +213,24 @@ color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 				intersection.t = t;
 				intersection.hit_material_index = triangle->material_index;
 				intersection.normal = normal;
+				intersection.object_found = 1;
+			}
+		}
+
+		for(uint32_t plane_index = 0; plane_index < world->total_planes; ++plane_index)
+		{
+			plane_t *plane = &world->planes[plane_index];
+			float t = hit_plane2(plane->point, plane->normal, *ray, t_min, t_max);
+
+			if(t <= 0.0f) continue;
+
+			if(t < closest_so_far)
+			{
+				closest_so_far = t;
+				intersection.intersection_point = ray->at(t);
+				intersection.t = t;
+				intersection.hit_material_index = plane->material_index;
+				intersection.normal = plane->normal;
 				intersection.object_found = 1;
 			}
 		}

@@ -81,10 +81,20 @@ typedef struct
 
 typedef struct
 {
+	float distance; // perpendicular distance from the origin.
+	vec3_t normal;
+	point3_t point;
+	uint32_t material_index;
+} plane_t;
+
+typedef struct
+{
 	sphere_t *spheres;
 	uint32_t total_spheres;
 	triangle_t *triangles;
 	uint32_t total_triangles;
+	plane_t *planes;
+	uint32_t total_planes;
 	material_t *materials;
 	uint32_t total_materials;
 } world_t;
