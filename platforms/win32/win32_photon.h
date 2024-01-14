@@ -1,6 +1,8 @@
 #ifndef PLATFORMS_WIN32_PHOTON
 #define PLATFORMS_WIN32_PHOTON
 
+// TODO list:
+
 #include "../../core/photon.h"
 #include <Windows.h>
 #include <intrin.h>
