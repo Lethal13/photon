@@ -230,6 +230,7 @@ void create_work_queue(work_queue *queue, settings_t *settings, world_t *world, 
 	PHOTON_ASSERT(queue->total_work_orders == total_tiles);
 }
 
+// TODO(Alexandris): Add asserts.
 static void create_world_test1(framebuffer_t *framebuffer, world_t *world, camera_t *camera, settings_t *settings)
 {
 	framebuffer->width = 800;
