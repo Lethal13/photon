@@ -57,7 +57,7 @@ LOCK_ADD(win32_lock_add)
 DWORD WINAPI worker_thread(void *lpParameter)
 {
 	win32_wrapper *wrapper = (win32_wrapper*)lpParameter;
-	while(wrapper->raytracer(wrapper->buffer, wrapper->world, wrapper->camera, wrapper->settings, wrapper->queue))
+	while(wrapper->raytracer(wrapper->framebuffer, wrapper->world, wrapper->camera, wrapper->settings, wrapper->queue))
 	{
 	}
 
@@ -183,49 +183,56 @@ void create_work_queue(work_queue *queue, settings_t *settings, world_t *world, 
 	PHOTON_ASSERT(queue->total_work_orders == total_tiles);
 }
 
+static void create_world_test1(framebuffer_t *framebuffer, world_t *world, camera_t *camera, settings_t *settings)
+{
+	framebuffer->width = 800;
+	framebuffer->height = 400;
+	framebuffer->bytes_per_pixel = 4;
+	framebuffer->pitch = 500 * framebuffer->bytes_per_pixel;
+	framebuffer->pixels = malloc(framebuffer->width * framebuffer->height * framebuffer->bytes_per_pixel);
+
+	uint32_t total_spheres = 1;
+	uint32_t total_materials = 1;
+
+	world->total_spheres = total_spheres;
+	world->spheres = (sphere_t*)malloc(sizeof(sphere_t) * total_spheres);
+	world->spheres[0].center = point3_t(0.0f, 0.0f, -2.0f);
+	world->spheres[0].radius = 1.0f;
+	world->spheres[0].material_index = 0;
+
+	world->total_materials = total_materials;
+	world->materials = (material_t*)malloc(sizeof(material_t) * total_materials);
+	world->materials[0].material = diffuse;
+	world->materials[0].base_color = color_t{1.0f, 0.0f, 0.0f};
+	world->materials[0].roughness = 0.0f;
+	world->materials[0].ior = 0.0f;
+
+	settings->samples_per_pixel = 100;
+	settings->max_bounces = 10;
+	settings->total_cpu_cores = get_total_cpu_cores();
+	settings->total_cpu_cores = 4;
+	settings->cache_line_size = get_cache_line_size();
+	settings->lock_add = win32_lock_add;
+
+	*camera = camera_t(point3_t{0.0f, 0.0f, 0.0f} , point3_t{0.0f, 0.0f, -1.0f} , vec3_t{0.0f, 1.0f, 0.0f}, 60.0f, framebuffer->width, framebuffer->height);
+}
+
 int main(int argc, char **argv)
 {
 	win32_raytrace_code raytrace_code = load_raytracer_library("photon.dll");
 
-	framebuffer_t buffer = {0};
-	buffer.width = 800;
-	buffer.height = 400;
-	buffer.bytes_per_pixel = 4;
-	buffer.pitch = 500 * buffer.bytes_per_pixel;
-	buffer.pixels = malloc(buffer.width * buffer.height * buffer.bytes_per_pixel);
-	
-	uint32_t total_spheres = 1;
-	uint32_t total_materials = 1;
-
+	framebuffer_t framebuffer = {0};
 	world_t world = {0};
-	world.total_spheres = total_spheres;
-	world.spheres = (sphere_t*)malloc(sizeof(sphere_t) * total_spheres);
-	world.spheres[0].center = point3_t(0.0f, 0.0f, -2.0f);
-	world.spheres[0].radius = 1.0f;
-	world.spheres[0].material_index = 0;
-
-	world.total_materials = total_materials;
-	world.materials = (material_t*)malloc(sizeof(material_t) * total_materials);
-	world.materials[0].material = diffuse;
-	world.materials[0].base_color = color_t{1.0f, 0.0f, 0.0f};
-	world.materials[0].roughness = 0.0f;
-	world.materials[0].ior = 0.0f;
-
-	camera_t camera(point3_t{0.0f, 0.0f, 0.0f} , point3_t{0.0f, 0.0f, -1.0f} , vec3_t{0.0f, 1.0f, 0.0f}, 60.0f, buffer.width, buffer.height);
-
+	camera_t camera = {};
 	settings_t settings = {0};
-	settings.samples_per_pixel = 100;
-	settings.max_bounces = 10;
-	settings.total_cpu_cores = get_total_cpu_cores();
-	settings.total_cpu_cores = 4;
-	settings.cache_line_size = get_cache_line_size();
-	settings.lock_add = win32_lock_add;
+
+	create_world_test1(&framebuffer, &world, &camera, &settings);
 
 	work_queue queue = {0};
-	create_work_queue(&queue, &settings, &world, &buffer);
+	create_work_queue(&queue, &settings, &world, &framebuffer);
 
 	win32_wrapper wrapper = {0};
-	wrapper.buffer = &buffer;
+	wrapper.framebuffer = &framebuffer;
 	wrapper.world = &world;
 	wrapper.camera = &camera;
 	wrapper.settings = &settings;
@@ -250,7 +257,7 @@ int main(int argc, char **argv)
 	while(queue.work_order_index < queue.total_work_orders) // Experiment.
 #endif
 	{
-		if(raytrace_code.raytracer(&buffer, &world, &camera, &settings, &queue))
+		if(raytrace_code.raytracer(&framebuffer, &world, &camera, &settings, &queue))
 		{
 			fprintf(stderr, "\rRaycasting %d%%...", 100 * (uint32_t)queue.tiles_retired_counter / settings.total_tiles);
 			fflush(stdout);
@@ -260,14 +267,14 @@ int main(int argc, char **argv)
 
 
 	ppm_image image = {0};
-	convert_framebuffer_to_ppm_image(buffer.pixels, buffer.width, buffer.height, &image);
+	convert_framebuffer_to_ppm_image(framebuffer.pixels, framebuffer.width, framebuffer.height, &image);
 	PLATFORM_WRITE_FILE("test.ppm", image.total_size, image.data);
 
 	free(queue.work_orders);
 	free(world.materials);
 	free(world.spheres);
 	free(image.data);
-	free(buffer.pixels);
+	free(framebuffer.pixels);
 
 	return 0;
 }

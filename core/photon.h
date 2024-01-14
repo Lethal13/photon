@@ -75,8 +75,16 @@ typedef struct
 
 typedef struct
 {
+	point3_t vertices[3];
+	uint32_t material_index;
+} triangle_t;
+
+typedef struct
+{
 	sphere_t *spheres;
 	uint32_t total_spheres;
+	triangle_t *triangles;
+	uint32_t total_triangles;
 	material_t *materials;
 	uint32_t total_materials;
 } world_t;

@@ -14,7 +14,7 @@ struct win32_raytrace_code
 
 struct win32_wrapper
 {
-	framebuffer_t *buffer;
+	framebuffer_t *framebuffer;
 	world_t *world;
 	camera_t *camera;
 	settings_t *settings;

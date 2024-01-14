@@ -69,6 +69,49 @@ float hit_sphere(const point3_t& center, float radius, const ray_t& r, float t_m
     return -1.0f;
 }
 
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/barycentric-coordinates.html
+// Möller–Trumbore intersection algorithm
+// ray-triangle intersection.
+float hit_triangle(const point3_t vertices[3], const ray_t& r, float t_min, float t_max)
+{
+	vec3_t edge1, edge2, h, s, q;
+	float a, f, u, v;
+
+	edge1.x = vertices[1].x - vertices[0].x;
+	edge1.y = vertices[1].y - vertices[0].y;
+	edge1.z = vertices[1].z - vertices[0].z;
+
+	edge2.x = vertices[2].x - vertices[0].x;
+	edge2.y = vertices[2].y - vertices[0].y;
+	edge2.z = vertices[2].z - vertices[0].z;
+
+	h = cross(r.direction, edge2);
+	a = dot(edge1, h);
+
+	static constexpr float epsilon = 1e-5f;
+	// NOTE: Check if Ray and Triangle are parallel.
+	if(a > -epsilon && a < epsilon) return -1.0f;
+
+	f = 1.0f / a;
+	s.x = r.origin.x - vertices[0].x;
+	s.y = r.origin.y - vertices[0].y;
+	s.z = r.origin.z - vertices[0].z;
+	u = f * dot(s, h);
+
+	// NOTE: Check if the intersection is outside of the triangle.
+	if(u < 0.0f || u > 1.0f) return -1.0f;
+
+	q = cross(s, edge1);
+	v = f * dot(r.direction, q);
+
+	// NOTE: Check if the intersection is outside of the triangle.
+	if(v < 0.0f || (u + v) > 1.0f) return -1.0f;
+
+	float t = f * dot(edge2, q);
+	if(t > epsilon) return t;
+	return -1.0f;
+}
+
 color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 {
 	color_t pixel_color = {};
@@ -96,6 +139,40 @@ color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 				intersection.t = t;
 				intersection.hit_material_index = sphere->material_index;
 				intersection.normal = (ray->at(closest_so_far) - sphere->center) / sphere->radius;
+				intersection.object_found = 1;
+			}
+		}
+
+		for(uint32_t triangle_index = 0; triangle_index < world->total_triangles; ++triangle_index)
+		{
+			triangle_t *triangle = &world->triangles[triangle_index];
+			float t = hit_triangle(triangle->vertices, *ray, t_min, t_max);
+
+			if(t <= 0.0f) continue;
+
+			if(t < closest_so_far)
+			{
+				vec3_t normal;
+				vec3_t edge1, edge2;
+				edge1.x = triangle->vertices[1].x - triangle->vertices[0].x;
+				edge1.y = triangle->vertices[1].y - triangle->vertices[0].y;
+				edge1.z = triangle->vertices[1].z - triangle->vertices[0].z;
+
+				edge2.x = triangle->vertices[2].x - triangle->vertices[0].x;
+				edge2.y = triangle->vertices[2].y - triangle->vertices[0].y;
+				edge2.z = triangle->vertices[2].z - triangle->vertices[0].z;
+
+				normal.x = edge1.y * edge2.z - edge1.z * edge2.y;
+				normal.y = edge1.z * edge2.x - edge1.x * edge2.z;
+				normal.z = edge1.x * edge2.y - edge1.y * edge2.x;
+
+				normal = normalize(normal);
+
+				closest_so_far = t;
+				intersection.intersection_point = ray->at(t);
+				intersection.t = t;
+				intersection.hit_material_index = triangle->material_index;
+				intersection.normal = normal;
 				intersection.object_found = 1;
 			}
 		}

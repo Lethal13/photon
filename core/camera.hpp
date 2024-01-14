@@ -60,6 +60,28 @@ struct camera_t
 		pixel00_loc = film_upper_left + 0.5f * (pixel_delta_u + pixel_delta_v);
 	}
 
+	camera_t& operator=(const camera_t& c)
+	{
+		// TODO: Maybe replace it, with a memset.
+		this->position = c.position;
+		this->direction = c.direction;
+		this->camera_x = c.camera_x;
+		this->camera_y = c.camera_y;
+		this->camera_z = c.camera_z;
+
+		this->film_aspect_ratio = c.film_aspect_ratio;
+		this->film_u = c.film_u;
+		this->film_v = c.film_v;
+		this->pixel_delta_u = c.pixel_delta_u;
+		this->pixel_delta_v = c.pixel_delta_v;
+		this->focal_length = c.focal_length;
+		this->film_distance = c.film_distance;
+		this->film_upper_left = c.film_upper_left;
+		this->pixel00_loc = c.pixel00_loc;
+
+		return *this;
+	}
+
 	ray_t get_ray(float x, float y) const
 	{
 		point3_t pixel_center = pixel00_loc + x * pixel_delta_u + y * pixel_delta_v;
