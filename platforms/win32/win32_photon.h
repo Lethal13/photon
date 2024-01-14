@@ -26,7 +26,7 @@ struct win32_wrapper
 static uint64_t get_os_timer_freq(void);
 static uint64_t read_os_timer(void);
 inline uint64_t read_cpu_timer(void);
-static uint64_t estimate_cpu_time_freq(void);
+static uint64_t estimate_cpu_time_freq(void); // returns an estimation of cpu clocks per second.
 
 win32_raytrace_code load_raytracer_library(char *dll);
 uint32_t get_total_cpu_cores(void);
