@@ -1,6 +1,53 @@
 #include "win32_photon.h"
 #include <stdio.h>
 
+static uint64_t get_os_timer_freq(void)
+{
+	LARGE_INTEGER value;
+	QueryPerformanceFrequency(&value); // ticks per second.
+	return value.QuadPart;
+}
+
+static uint64_t read_os_timer(void)
+{
+	LARGE_INTEGER value;
+	QueryPerformanceCounter(&value); // get the current value of ticks.
+	return value.QuadPart;
+}
+
+inline uint64_t read_cpu_timer(void)
+{
+	return __rdtsc();
+}
+
+static uint64_t estimate_cpu_time_freq(void)
+{
+	uint64_t milliseconds_to_wait = 100;
+	uint64_t os_freq = get_os_timer_freq();
+
+	uint64_t cpu_start = read_cpu_timer();
+	uint64_t os_start = read_os_timer();
+	uint64_t os_end = 0;
+	uint64_t os_elapsed = 0;
+	uint64_t os_wait_time = os_freq * milliseconds_to_wait / 1000;
+	while(os_elapsed < os_wait_time)
+	{
+		os_end = read_os_timer();
+		os_elapsed = os_end - os_start;
+	}
+	
+	uint64_t cpu_end = read_cpu_timer();
+	uint64_t cpu_elapsed = cpu_end - cpu_start;
+	
+	uint64_t cpu_freq = 0;
+	if(os_elapsed)
+	{
+		cpu_freq = os_freq * cpu_elapsed / os_elapsed;
+	}
+	
+	return cpu_freq;
+}
+
 // TODO: Collapse all memory allocations, into one big memory allocation at startup.
 // TODO: Add the case that library was not loaded properly.
 win32_raytrace_code load_raytracer_library(char *dll)
@@ -219,6 +266,8 @@ static void create_world_test1(framebuffer_t *framebuffer, world_t *world, camer
 
 int main(int argc, char **argv)
 {
+	uint64_t cpu_freq = estimate_cpu_time_freq();
+	uint64_t cpu_start = read_cpu_timer();
 	win32_raytrace_code raytrace_code = load_raytracer_library("photon.dll");
 
 	framebuffer_t framebuffer = {0};
@@ -269,6 +318,10 @@ int main(int argc, char **argv)
 	ppm_image image = {0};
 	convert_framebuffer_to_ppm_image(framebuffer.pixels, framebuffer.width, framebuffer.height, &image);
 	PLATFORM_WRITE_FILE("test.ppm", image.total_size, image.data);
+
+	uint64_t cpu_end = read_cpu_timer();
+
+	printf("\nTotal execution time: %.2f(secs).\n", ((double)cpu_end - cpu_start)/(double)cpu_freq);
 
 	free(queue.work_orders);
 	free(world.materials);
