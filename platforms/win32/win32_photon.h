@@ -4,6 +4,8 @@
 // TODO list:
 
 #include "../../core/photon.h"
+#include "../../vendors/obj.h"
+#include "../../core/test_worlds.hpp"
 #include <Windows.h>
 #include <intrin.h>
 #include <sstream>

@@ -1,6 +1,8 @@
 #include "win32_photon.h"
 #include <stdio.h>
 
+// TODO: Collapse all memory allocations, into one big memory allocation at startup.
+
 static uint64_t get_os_timer_freq(void)
 {
 	LARGE_INTEGER value;
@@ -48,7 +50,6 @@ static uint64_t estimate_cpu_time_freq(void)
 	return cpu_freq;
 }
 
-// TODO: Collapse all memory allocations, into one big memory allocation at startup.
 // TODO: Add the case that library was not loaded properly.
 win32_raytrace_code load_raytracer_library(char *dll)
 {
@@ -230,53 +231,51 @@ void create_work_queue(work_queue *queue, settings_t *settings, world_t *world, 
 	PHOTON_ASSERT(queue->total_work_orders == total_tiles);
 }
 
-// TODO(Alexandris): Add asserts.
-static void create_world_test1(framebuffer_t *framebuffer, world_t *world, camera_t *camera, settings_t *settings)
-{
-	framebuffer->width = 800;
-	framebuffer->height = 400;
-	framebuffer->bytes_per_pixel = 4;
-	framebuffer->pitch = 500 * framebuffer->bytes_per_pixel;
-	framebuffer->pixels = malloc(framebuffer->width * framebuffer->height * framebuffer->bytes_per_pixel);
-
-	uint32_t total_spheres = 1;
-	uint32_t total_materials = 1;
-
-	world->total_spheres = total_spheres;
-	world->spheres = (sphere_t*)malloc(sizeof(sphere_t) * total_spheres);
-	world->spheres[0].center = point3_t(0.0f, 0.0f, -2.0f);
-	world->spheres[0].radius = 1.0f;
-	world->spheres[0].material_index = 0;
-
-	world->total_materials = total_materials;
-	world->materials = (material_t*)malloc(sizeof(material_t) * total_materials);
-	world->materials[0].material = diffuse;
-	world->materials[0].base_color = color_t{1.0f, 0.0f, 0.0f};
-	world->materials[0].roughness = 0.0f;
-	world->materials[0].ior = 0.0f;
-
-	settings->samples_per_pixel = 100;
-	settings->max_bounces = 10;
-	settings->total_cpu_cores = get_total_cpu_cores();
-	settings->total_cpu_cores = 4;
-	settings->cache_line_size = get_cache_line_size();
-	settings->lock_add = win32_lock_add;
-
-	*camera = camera_t(point3_t{0.0f, 0.0f, 0.0f} , point3_t{0.0f, 0.0f, -1.0f} , vec3_t{0.0f, 1.0f, 0.0f}, 60.0f, framebuffer->width, framebuffer->height);
-}
-
 int main(int argc, char **argv)
 {
 	uint64_t cpu_freq = estimate_cpu_time_freq();
 	uint64_t cpu_start = read_cpu_timer();
 	win32_raytrace_code raytrace_code = load_raytracer_library("photon.dll");
 
+	// TODO + NOTE (Alexandris): Need to implement more elegant way to how we name the output file.
+	// double digits and more are not handled well. for example world_case_15.ppm needs another character.
+    char output_file[] = "world_case_1.ppm";
 	framebuffer_t framebuffer = {0};
 	world_t world = {0};
 	camera_t camera = {};
 	settings_t settings = {0};
 
-	create_world_test1(&framebuffer, &world, &camera, &settings);
+	// NOTE(Alexandris): Need to decide where we will initialize the structures.
+	// framebuffer, world, camera, settings
+	settings.samples_per_pixel = 100;
+	settings.max_bounces = 10;
+	settings.total_cpu_cores = get_total_cpu_cores();
+	settings.total_cpu_cores = 4;
+	settings.cache_line_size = get_cache_line_size();
+	settings.lock_add = win32_lock_add;
+
+	if(argc > 1)
+	{
+		int option = atoi(argv[1]);
+		switch(option)
+		{
+			case 1:
+				create_world_case1(&framebuffer, &world, &camera, &settings);
+				break;
+			case 2:
+				create_world_case2(&framebuffer, &world, &camera, &settings);
+				output_file[11] = '2';
+				break;
+			default:
+				create_world_case1(&framebuffer, &world, &camera, &settings);
+				output_file[11] = '2';
+		}
+	}
+	else
+	{
+		create_world_case2(&framebuffer, &world, &camera, &settings);
+		output_file[11] = '2';
+	}
 
 	work_queue queue = {0};
 	create_work_queue(&queue, &settings, &world, &framebuffer);
@@ -318,7 +317,7 @@ int main(int argc, char **argv)
 
 	ppm_image image = {0};
 	convert_framebuffer_to_ppm_image(framebuffer.pixels, framebuffer.width, framebuffer.height, &image);
-	PLATFORM_WRITE_FILE("test.ppm", image.total_size, image.data);
+	PLATFORM_WRITE_FILE(output_file, image.total_size, image.data);
 
 	uint64_t cpu_end = read_cpu_timer();
 
