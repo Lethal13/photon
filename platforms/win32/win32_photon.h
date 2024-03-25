@@ -15,6 +15,7 @@ struct win32_raytrace_code
 {
 	HMODULE library;
 	raytrace_function *raytracer;
+	add_filter_function *add_filter;
 };
 
 struct win32_wrapper
@@ -25,6 +26,7 @@ struct win32_wrapper
 	settings_t *settings;
 	work_queue *queue;
 	raytrace_function *raytracer;
+	add_filter_function *add_filter;
 };
 
 static uint64_t get_os_timer_freq(void);

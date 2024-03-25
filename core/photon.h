@@ -53,6 +53,11 @@ typedef struct
 
 } settings_t;
 
+enum filter_type
+{
+	none = 0
+};
+
 enum material_type
 {
 	diffuse = 0,
@@ -99,6 +104,7 @@ typedef struct
 	uint32_t total_planes;
 	material_t *materials;
 	uint32_t total_materials;
+	filter_type filter;
 } world_t;
 
 typedef struct
@@ -119,5 +125,9 @@ typedef struct
 
 #define RAYTRACER(name) uint64_t name(framebuffer_t *buffer, world_t *world, camera_t *camera, settings_t *settings, work_queue *queue)
 typedef RAYTRACER(raytrace_function);
+
+// TODO(Alexandris): Check if we need to pass all these arguments just to add filter.
+#define FILTER(name) uint32_t name(framebuffer_t *buffer, world_t *world, camera_t *camera, settings_t *settings, work_queue *queue)
+typedef FILTER(add_filter_function);
 
 #endif

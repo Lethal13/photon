@@ -371,3 +371,9 @@ RAYTRACER(raytrace)
 
 	return 1;
 }
+
+// uin32_t add_filter(framebuffer_t *buffer, world_t *world, camera_t *camera, settings_t *settings, work_queue *queue)
+FILTER(add_filter)
+{
+	return 0;
+}

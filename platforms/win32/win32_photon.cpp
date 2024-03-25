@@ -51,11 +51,13 @@ static uint64_t estimate_cpu_time_freq(void)
 }
 
 // TODO: Add the case that library was not loaded properly.
+// TODO: We load a filter function also, at least for now. Check if it's need rename.
 win32_raytrace_code load_raytracer_library(char *dll)
 {
 	win32_raytrace_code result = {0};
 	result.library =  LoadLibraryA(dll);
 	result.raytracer = (raytrace_function*)GetProcAddress(result.library, "raytrace");
+	result.add_filter = (add_filter_function*)GetProcAddress(result.library, "add_filter");
 
 	return result;
 }
@@ -318,6 +320,8 @@ int main(int argc, char **argv)
 		
 	}
 
+	int32_t filter_result = raytrace_code.add_filter(&framebuffer, &world, &camera, &settings, &queue);
+	PHOTON_ASSERT(filter_result == 0);
 
 	ppm_image image = {0};
 	convert_framebuffer_to_ppm_image(framebuffer.pixels, framebuffer.width, framebuffer.height, &image);

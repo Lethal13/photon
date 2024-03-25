@@ -18,6 +18,7 @@ static void create_world_case1(framebuffer_t *framebuffer, world_t *world, camer
 	constexpr uint32_t total_spheres = 1;
 	constexpr uint32_t total_materials = 1;
 
+	world->filter = none;
 	world->total_spheres = total_spheres;
 	world->spheres = (sphere_t*)malloc(sizeof(sphere_t) * total_spheres);
 	world->spheres[0].center = point3_t(0.0f, 0.0f, -2.0f);
@@ -64,6 +65,7 @@ static void create_world_case2(framebuffer_t *framebuffer, world_t *world, camer
 
 	constexpr uint32_t total_materials = 1;
 
+	world->filter = none;
 	world->total_materials = total_materials;
 	world->materials = (material_t*)malloc(sizeof(material_t) * total_materials);
 	world->materials[0].material = diffuse;
