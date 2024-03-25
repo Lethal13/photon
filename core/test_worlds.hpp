@@ -51,7 +51,7 @@ static void create_world_case2(framebuffer_t *framebuffer, world_t *world, camer
 	framebuffer->pitch = 500 * framebuffer->bytes_per_pixel;
 	framebuffer->pixels = malloc(framebuffer->width * framebuffer->height * framebuffer->bytes_per_pixel);
 
-	char const *filename = "monkey_smooth.obj";
+	char const *filename = "Spaceship.obj";
 	ObjResult obj_result;
 	memset(&obj_result, 0, sizeof(ObjResult));
 	ObjInfo obj_info;
@@ -59,6 +59,8 @@ static void create_world_case2(framebuffer_t *framebuffer, world_t *world, camer
 // 	int32_t result =
 // 	TODO(Alexandris): read value returned from read_obj_file(...) function and add paths accordinly to that.
 	read_obj_file(filename, &obj_result, &obj_info);
+
+	PHOTON_ASSERT((obj_result.index_buffer_size % 3) == 0);
 
 	constexpr uint32_t total_materials = 1;
 
@@ -73,11 +75,11 @@ static void create_world_case2(framebuffer_t *framebuffer, world_t *world, camer
 	world->triangles = (triangle_t*)malloc(sizeof(triangle_t) * world->total_triangles);
 
 	size_t index = 0;
-	constexpr float z_offset = -2.2f;
+	constexpr float z_offset = -4.0f;
 
 	uint16_t *index_buffer = (uint16_t*)obj_result.index_buffer;
 
-	for(size_t i = 0; i < world->total_triangles; i++)
+	for(size_t i = 0; i < world->total_triangles; ++i)
 	{
 		world->triangles[i].vertices[0].x = obj_result.vertex_buffer[index_buffer[index]].point.x;
 		world->triangles[i].vertices[0].y = obj_result.vertex_buffer[index_buffer[index]].point.y;
@@ -90,6 +92,10 @@ static void create_world_case2(framebuffer_t *framebuffer, world_t *world, camer
 		world->triangles[i].vertices[2].x = obj_result.vertex_buffer[index_buffer[index + 2]].point.x;
 		world->triangles[i].vertices[2].y = obj_result.vertex_buffer[index_buffer[index + 2]].point.y;
 		world->triangles[i].vertices[2].z = obj_result.vertex_buffer[index_buffer[index + 2]].point.z + z_offset;
+
+	//	world->triangles[i].vertices[0].z *= -1.0f;
+	//	world->triangles[i].vertices[1].z *= -1.0f;
+	//	world->triangles[i].vertices[2].z *= -1.0f;
 
 		world->triangles[i].material_index = 0;
 

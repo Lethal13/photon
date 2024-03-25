@@ -239,7 +239,8 @@ int main(int argc, char **argv)
 
 	// TODO + NOTE (Alexandris): Need to implement more elegant way to how we name the output file.
 	// double digits and more are not handled well. for example world_case_15.ppm needs another character.
-    char output_file[] = "world_case_1.ppm";
+	// TODO: Take into consideration the path for release mode. Right now it's jut for debug.
+    char output_file[] = "../output/world_case_1.ppm";
 	framebuffer_t framebuffer = {0};
 	world_t world = {0};
 	camera_t camera = {};
@@ -247,8 +248,8 @@ int main(int argc, char **argv)
 
 	// NOTE(Alexandris): Need to decide where we will initialize the structures.
 	// framebuffer, world, camera, settings
-	settings.samples_per_pixel = 100;
-	settings.max_bounces = 10;
+	settings.samples_per_pixel = 10;
+	settings.max_bounces = 5;
 	settings.total_cpu_cores = get_total_cpu_cores();
 	settings.total_cpu_cores = 4;
 	settings.cache_line_size = get_cache_line_size();
@@ -264,17 +265,20 @@ int main(int argc, char **argv)
 				break;
 			case 2:
 				create_world_case2(&framebuffer, &world, &camera, &settings);
-				output_file[11] = '2';
+				// output_file[11] = '2';
+				output_file[21] = '2';
 				break;
 			default:
 				create_world_case1(&framebuffer, &world, &camera, &settings);
-				output_file[11] = '2';
+				// output_file[11] = '2';
+				output_file[21] = '2';
 		}
 	}
 	else
 	{
 		create_world_case2(&framebuffer, &world, &camera, &settings);
-		output_file[11] = '2';
+		// output_file[11] = '2';
+		output_file[21] = '2';
 	}
 
 	work_queue queue = {0};

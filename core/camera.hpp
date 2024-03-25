@@ -5,6 +5,8 @@
 #include "../math/point3.hpp"
 #include "../math/ray.hpp"
 
+// TODO: Add description about how camera works.
+// Right now it's a classic pinhole camera, that returns the image reversed.
 struct camera_t
 {
 

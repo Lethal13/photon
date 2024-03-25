@@ -37,6 +37,14 @@ inline double clamp(double x, double min, double max)
     return x;
 }
 
+double reflectance(double cosine, double ref_idx)
+{
+    // Use Schlick's approximation for reflectance.
+    auto r0 = (1-ref_idx) / (1+ref_idx);
+    r0 = r0*r0;
+    return r0 + (1-r0)*pow((1 - cosine),5);
+}
+
 // ray-sphere intersection.
 float hit_sphere(const point3_t& center, float radius, const ray_t& r, float t_min, float t_max)
 {
@@ -244,7 +252,7 @@ color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 				case diffuse:
 				{
 					vec3_t normal = intersection.normal;
-					if(dot(ray->direction, normal) > 0.0f) 
+					if(dot(ray->direction, intersection.normal) > 0.0f) 
 					{
 						normal = -intersection.normal;
 					}
@@ -257,6 +265,44 @@ color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 
 					// Catch the case where random_unit_vector() is opposite to normal, so the direction is 0.
 					if(ray->direction.near_zero()) ray->direction = normal;
+				} break;
+				case metal:
+				{
+					vec3_t normal = intersection.normal;
+					if(dot(ray->direction, intersection.normal) > 0.0f)
+					{
+						normal = -intersection.normal;
+					}
+
+					attenuation *= material->base_color;
+					ray->origin = intersection.intersection_point;
+					ray->direction = reflect(normalize(ray->direction), normal) + material->roughness * random_in_unit_sphere();
+				} break;
+				case dielectric:
+				{
+					uint32_t front_face = 1;
+					vec3_t normal = intersection.normal;
+					if(dot(ray->direction, intersection.normal) > 0.0f)
+					{
+						normal = -intersection.normal;
+					}
+
+					// Check attenuation = Color(1.0, 1.0, 1.0);
+					attenuation = attenuation;
+
+					float refraction_ratio = front_face ? (1.0f / material->ior) : material->ior;
+					vec3_t unit_direction = normalize(ray->direction);
+					double cos_theta = fmin(dot(-unit_direction, normal), 1.0f);
+					double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+
+					uint32_t cannot_refract = refraction_ratio * sin_theta > 1.0f;
+					vec3_t direction;
+					if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_double())
+						direction = reflect(unit_direction, normal);
+					else
+						direction = refract(unit_direction, normal, refraction_ratio);
+
+					*ray = ray_t(intersection.intersection_point, direction);
 				} break;
 			};
 
@@ -278,7 +324,6 @@ color_t cast_ray(world_t *world, ray_t *ray, uint32_t max_bounces)
 
 void render_tile(framebuffer_t *buffer, world_t *world, camera_t *camera, settings_t *settings, work_order *order)
 {
-
 	for(uint32_t j = order->y_min; j < order->y_max; ++j)
 	{
 		uint32_t offset = (order->x_min + j * buffer->width) * 4;
@@ -306,6 +351,8 @@ void render_tile(framebuffer_t *buffer, world_t *world, camera_t *camera, settin
 			*pixels++ = (uint8_t)alpha;
 		}
 	}
+	
+	// TODO(Alexandris): Maybe add the filter inside the tile? But propably need others tiles for cross-tile filtering?
 }
 
 // raytrace(framebuffer_t *buffer, world_t *world, camera_t *camera, settings_t *settings, work_queue *queue)

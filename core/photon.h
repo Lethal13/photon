@@ -56,6 +56,8 @@ typedef struct
 enum material_type
 {
 	diffuse = 0,
+	metal = 1,
+	dielectric = 2
 };
 
 typedef struct
