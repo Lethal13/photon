@@ -1,0 +1,13 @@
+# Format Style Options - Created with Clang Power Tools
+---
+BasedOnStyle: LLVM
+AlignAfterOpenBracket: DontAlign
+AlignOperands: DontAlign
+AllowShortIfStatementsOnASingleLine: WithoutElse
+BreakBeforeBraces: Allman
+ColumnLimit: 110
+IndentCaseLabels: true
+IndentWidth: 8
+SpaceBeforeParens: Never
+UseTab: ForIndentation
+...
