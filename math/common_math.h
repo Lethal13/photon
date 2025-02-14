@@ -57,13 +57,6 @@ inline float clamp(float x, float min, float max)
     return x;
 }
 
-inline double clamp(double x, double min, double max)
-{
-    if (x < min) return min;
-    if (x > max) return max;
-    return x;
-}
-
 // Source: https://entropymine.com/imageworsener/srgbformula/
 inline float linear_to_srgb(float value)
 {
@@ -81,27 +74,6 @@ inline float linear_to_srgb(float value)
     if(value > 0.0031308f)
     {
         result = 1.055f * std::pow(value, 1.0f/2.4f) - 0.055f;
-    }
-    
-    return result;
-}
-
-inline double linear_to_srgb(double value)
-{
-    if(value < 0.0)
-    {
-        value = 0.0;
-    }
-    
-    if(value > 1.0)
-    {
-        value = 1.0;
-    }
-    
-    double result = value * 12.92;
-    if(value > 0.0031308)
-    {
-        result = 1.055 * std::pow(value, 1.0/2.4) - 0.055;
     }
     
     return result;

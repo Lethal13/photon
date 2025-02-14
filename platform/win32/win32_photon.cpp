@@ -6,11 +6,8 @@ static win32_photon win32_load_photon_dll(const char *dll)
 	win32_photon result = {0};
 	result.library = LoadLibraryA(dll);
 	result.raytracer_iterative_sp = (raytrace_function_sp*)GetProcAddress(result.library, "raytracer_iterative_sp");
-	result.raytracer_iterative_dp = (raytrace_function_dp*)GetProcAddress(result.library, "raytracer_iterative_dp");
 	result.raytracer_recursive_sp = (raytrace_function_sp*)GetProcAddress(result.library, "raytracer_recursive_sp");
-	result.raytracer_recursive_dp = (raytrace_function_dp*)GetProcAddress(result.library, "raytracer_recursive_dp");
 	result.raytracer_queue_sp = (raytrace_function_queue_sp*)GetProcAddress(result.library, "raytracer_queue_sp");
-	result.raytracer_queue_dp = (raytrace_function_queue_dp*)GetProcAddress(result.library, "raytracer_queue_dp");
 	return result;
 }
 
@@ -23,11 +20,8 @@ static void win32_unload_photon_dll(win32_photon *photon)
 			FreeLibrary(photon->library);
 			photon->library = 0;
 			photon->raytracer_iterative_sp = 0;
-			photon->raytracer_iterative_dp = 0;
 			photon->raytracer_recursive_sp = 0;
-			photon->raytracer_recursive_dp = 0;
             photon->raytracer_queue_sp = 0;
-            photon->raytracer_queue_dp = 0;
 		}
 	}
 }
@@ -153,9 +147,9 @@ uint64_t lock_add(uint64_t volatile *value, uint64_t add)
 	return result;
 }
 
-DWORD WINAPI worker_thread32(void *lpParameter)
+DWORD WINAPI worker_thread(void *lpParameter)
 {
-    thread_params32_t *params = (thread_params32_t*)lpParameter;
+    thread_params_t *params = (thread_params_t*)lpParameter;
 	while(params->raytracer(params->queue, params->lock_add))
 	{
 	}
@@ -163,32 +157,15 @@ DWORD WINAPI worker_thread32(void *lpParameter)
 	return 0;
 }
 
-void create_worker_thread(thread_params32_t *params)
+void create_worker_thread(thread_params_t *params)
 {
 	DWORD thread_id;
-	HANDLE thread_handle = CreateThread(0, 0, worker_thread32, params, 0, &thread_id);
-	CloseHandle(thread_handle);
-}
-
-DWORD WINAPI worker_thread64(void *lpParameter)
-{
-    thread_params64_t *params = (thread_params64_t*)lpParameter;
-	while(params->raytracer(params->queue, params->lock_add))
-	{
-	}
-
-	return 0;
-}
-
-void create_worker_thread(thread_params64_t *params)
-{
-	DWORD thread_id;
-	HANDLE thread_handle = CreateThread(0, 0, worker_thread64, params, 0, &thread_id);
+	HANDLE thread_handle = CreateThread(0, 0, worker_thread, params, 0, &thread_id);
 	CloseHandle(thread_handle);
 }
 
 // Setup functions for SP and DP cameras
-void setup_camera_sp(const camera_setup_t& setup, camera32_t* camera)
+void setup_camera_sp(const camera_setup_t& setup, camera_t* camera)
 {
     point3f_t look_from(13.0f, 2.0f, 3.0f);
     point3f_t look_at(0.0f, 0.0f, 0.0f);
@@ -207,27 +184,8 @@ void setup_camera_sp(const camera_setup_t& setup, camera32_t* camera)
                        camera);
 }
 
-void setup_camera_dp(const camera_setup_t& setup, camera64_t* camera)
-{
-    point3d_t look_from(13.0, 2.0, 3.0);
-    point3d_t look_at(0.0, 0.0, 0.0);
-    vec3d_t v_up(0.0, 1.0, 0.0);
-    
-    initialize_camera64(setup.aspect_ratio, 
-                       setup.width, 
-                       setup.height, 
-                       look_from, 
-                       look_at, 
-                       v_up, 
-                       setup.defocus_angle, 
-                       setup.focus_dist, 
-                       setup.samples_per_pixel, 
-                       setup.max_bounces, 
-                       camera);
-}
-
 void run_raytracer_test_sp(const char *test_name, raytrace_function_sp raytracer_func, framebuffer_t *framebuffer,
-        world32_t *world, camera32_t *camera, const uint64_t cpu_freq)
+        world_t *world, camera_t *camera, const uint64_t cpu_freq)
 {
     info_t info = {0};
     uint64_t start_cpu_timer = __rdtsc();
@@ -248,38 +206,6 @@ void run_raytracer_test_sp(const char *test_name, raytrace_function_sp raytracer
     uint64_t total_tsc_elapsed = __rdtsc() - start_cpu_timer;
 
     if(cpu_freq)
-    {
-        double time_ms = 1000.0 * (double)total_tsc_elapsed / (double)cpu_freq;
-        printf("\n%s Raytracer total time: %0.4fms (estimated CPU freq %llu)\n", 
-               test_name, time_ms, cpu_freq);
-        printf("Bounces Computed: %lld bounces\n", info.bounces_computed);
-        printf("Performance: %fms/bounce\n", 
-               time_ms / (double)info.bounces_computed);
-    }
-}
-
-void run_raytracer_test_dp(const char *test_name, raytrace_function_dp raytracer_func, framebuffer_t *framebuffer,
-        world64_t *world, camera64_t *camera, const uint64_t cpu_freq)
-{
-    info_t info = {0};
-    uint64_t start_cpu_timer = __rdtsc();
-
-    raytracer_func(framebuffer, world, camera, &info);
-
-    // Convert and save image
-    image_t image = {};
-    image.format = IMG_PPM;
-    convert_framebuffer_to_image(framebuffer->data, framebuffer->width, framebuffer->height, &image);
-    
-    char filename[256];
-    snprintf(filename, sizeof(filename), "test_%s.ppm", test_name);
-    PLATFORM_WRITE_FILE(filename, image.total_size, image.data);
-    free(image.data);
-
-    // Performance measurements
-    uint64_t total_tsc_elapsed = __rdtsc() - start_cpu_timer;
-    
-    if (cpu_freq)
     {
         double time_ms = 1000.0 * (double)total_tsc_elapsed / (double)cpu_freq;
         printf("\n%s Raytracer total time: %0.4fms (estimated CPU freq %llu)\n", 
@@ -291,11 +217,11 @@ void run_raytracer_test_dp(const char *test_name, raytrace_function_dp raytracer
 }
 
 void run_raytracer_queue_test_sp(const char *test_name, raytrace_function_queue_sp raytracer_func, framebuffer_t *framebuffer,
-        world32_t *world, camera32_t *camera, const uint64_t cpu_freq, uint32_t cpu_cores)
+        world_t *world, camera_t *camera, const uint64_t cpu_freq, uint32_t cpu_cores)
 {
     uint64_t start_cpu_timer = __rdtsc();
 
-    work_queue32_t work_queue = {0};
+    work_queue_t work_queue = {0};
 
     uint32_t tile_width = (framebuffer->width  +  (cpu_cores - 1)) / cpu_cores;
     uint32_t tile_height = tile_width;
@@ -303,7 +229,7 @@ void run_raytracer_queue_test_sp(const char *test_name, raytrace_function_queue_
     uint32_t tile_count_y = (framebuffer->height + tile_height - 1)/ tile_height;
     uint32_t total_tiles = tile_count_x * tile_count_y;
 
-    work_queue.work_orders = (work_order32_t*)malloc(sizeof(work_order32_t) * total_tiles);
+    work_queue.work_orders = (work_order_t*)malloc(sizeof(work_order_t) * total_tiles);
 
     for(uint32_t tile_y = 0; tile_y < tile_count_y; ++tile_y)
     {
@@ -319,7 +245,7 @@ void run_raytracer_queue_test_sp(const char *test_name, raytrace_function_queue_
             if(x_max > framebuffer->width)
                 x_max = framebuffer->width;
 
-            work_order32_t *work_order = work_queue.work_orders + work_queue.work_orders_count++;
+            work_order_t *work_order = work_queue.work_orders + work_queue.work_orders_count++;
             // TODO(alexandris): add assert
             // PHOTON_ASSERT(work_queue.work_orders_count <= total_tiles);
 
@@ -344,10 +270,9 @@ void run_raytracer_queue_test_sp(const char *test_name, raytrace_function_queue_
 	printf("Quality: %d samples/pixel, %d bounces (max) per ray\n",
 			camera->samples_per_pixel, camera->max_bounces);
 
-
 	lock_add(&work_queue.work_order_index, 0);
 
-    thread_params32_t thread_params = {0};
+    thread_params_t thread_params = {0};
     thread_params.queue = &work_queue;
     thread_params.lock_add = lock_add;
     thread_params.raytracer = raytracer_func;
@@ -380,111 +305,6 @@ void run_raytracer_queue_test_sp(const char *test_name, raytrace_function_queue_
 
     // Performance measurements
     uint64_t total_tsc_elapsed = __rdtsc() - start_cpu_timer;
-
-
-    if(cpu_freq)
-    {
-        double time_ms = 1000.0 * (double)total_tsc_elapsed / (double)cpu_freq;
-        printf("\n%s Raytracer total time: %0.4fms (estimated CPU freq %llu)\n", 
-               test_name, time_ms, cpu_freq);
-        printf("Bounces Computed: %lld bounces\n", work_queue.bounces_computed);
-        printf("Performance: %fms/bounce\n", 
-               time_ms / (double)work_queue.bounces_computed);
-    }
-
-}
-
-void run_raytracer_queue_test_dp(const char *test_name, raytrace_function_queue_dp raytracer_func, framebuffer_t *framebuffer,
-        world64_t *world, camera64_t *camera, const uint64_t cpu_freq, uint32_t cpu_cores)
-{
-    uint64_t start_cpu_timer = __rdtsc();
-
-    work_queue64_t work_queue = {0};
-
-    uint32_t tile_width = (framebuffer->width  +  (cpu_cores - 1)) / cpu_cores;
-    uint32_t tile_height = tile_width;
-    uint32_t tile_count_x = (framebuffer->width  + tile_width - 1) / tile_width;
-    uint32_t tile_count_y = (framebuffer->height + tile_height - 1)/ tile_height;
-    uint32_t total_tiles = tile_count_x * tile_count_y;
-
-    work_queue.work_orders = (work_order64_t*)malloc(sizeof(work_order64_t) * total_tiles);
-
-    for(uint32_t tile_y = 0; tile_y < tile_count_y; ++tile_y)
-    {
-        uint32_t y_min = tile_y * tile_height;
-        uint32_t y_max = y_min + tile_height;
-        if(y_max > framebuffer->height)
-            y_max = framebuffer->height;
-
-        for(uint32_t tile_x = 0; tile_x < tile_count_x; ++tile_x)
-        {
-            uint32_t x_min = tile_x * tile_width;
-            uint32_t x_max = x_min + tile_height;
-            if(x_max > framebuffer->width)
-                x_max = framebuffer->width;
-
-            work_order64_t *work_order = work_queue.work_orders + work_queue.work_orders_count++;
-            // TODO(alexandris): add assert
-            // PHOTON_ASSERT(work_queue.work_orders_count <= total_tiles);
-
-            work_order->world = world;
-            work_order->framebuffer = *framebuffer;
-            work_order->x_min = x_min;
-            work_order->x_max = x_max;
-            work_order->y_min = y_min;
-            work_order->y_max = y_max;
-        }
-
-    }
-
-    work_queue.camera = *camera;
-
-    // TODO(alexandris): add assert
-    // PHOTON_ASSERT(work_queue.work_orders_count == total_tiles);
-
-	printf("\nConfiguration: %d cores with %d %dx%d tiles (%dKByte/tile)\n",
-			cpu_cores, total_tiles, tile_width, tile_height,
-			tile_width * tile_height * 3 / 1024);
-	printf("Quality: %d samples/pixel, %d bounces (max) per ray\n",
-			camera->samples_per_pixel, camera->max_bounces);
-
-
-	lock_add(&work_queue.work_order_index, 0);
-
-    thread_params64_t thread_params = {0};
-    thread_params.queue = &work_queue;
-    thread_params.lock_add = lock_add;
-    thread_params.raytracer = raytracer_func;
-
-	for(uint32_t core = 1; core < cpu_cores; ++core)
-	{
-		create_worker_thread(&thread_params);
-	}
-
-	while(work_queue.tile_retired_count < total_tiles)
-	{
-		if(raytracer_func(&work_queue, lock_add))
-		{
-			fprintf(stderr, "\rRaycasting %d%%...", 100 * (uint32_t)work_queue.tile_retired_count / total_tiles);
-			fflush(stdout);
-		}
-	}
-
-    // Convert and save image
-    image_t image = {};
-    image.format = IMG_PPM;
-    convert_framebuffer_to_image(framebuffer->data, framebuffer->width, framebuffer->height, &image);
-
-    char filename[256];
-    snprintf(filename, sizeof(filename), "test_%s.ppm", test_name);
-    PLATFORM_WRITE_FILE(filename, image.total_size, image.data);
-
-    free(image.data);
-    free(work_queue.work_orders);
-
-    // Performance measurements
-    uint64_t total_tsc_elapsed = __rdtsc() - start_cpu_timer;
-
 
     if(cpu_freq)
     {
@@ -502,6 +322,8 @@ int main(int argc, char **argv)
 {
 	win32_photon photon = win32_load_photon_dll("photon.dll");
 	printf("Photon Library was loaded successfully.\n");
+
+    // TODO(Alexandris): Support optional user input for choosing which raytracer or/and which test case
 
 	float aspect_ratio = 16.0f / 9.0f;
 	uint32_t image_width = 1200;
@@ -527,68 +349,43 @@ int main(int argc, char **argv)
     camera_setup.samples_per_pixel = samples_per_pixel;
     camera_setup.max_bounces = max_bounces;
 
-	camera32_t camera32;
-	camera64_t camera64;
-    setup_camera_sp(camera_setup, &camera32);
-    setup_camera_dp(camera_setup, &camera64);
+	camera_t camera;
+    setup_camera_sp(camera_setup, &camera);
 
-	world32_t world32 = {0};
-	world64_t world64 = {0};
-	init_world(&world32);
-	init_world(&world64);
+	world_t world = {0};
+	init_world(&world);
 
     uint64_t cpu_freq = estimate_cpu_freq();
 
     // Run raytracing tests
     run_raytracer_test_sp("iterative_sp", photon.raytracer_iterative_sp, 
-                         &framebuffer, &world32, &camera32, cpu_freq);
+                         &framebuffer, &world, &camera, cpu_freq);
     
-    run_raytracer_test_dp("iterative_dp", photon.raytracer_iterative_dp, 
-                         &framebuffer, &world64, &camera64, cpu_freq);
     
     run_raytracer_test_sp("recursive_sp", photon.raytracer_recursive_sp, 
-                         &framebuffer, &world32, &camera32, cpu_freq);
+                         &framebuffer, &world, &camera, cpu_freq);
     
-    run_raytracer_test_dp("recursive_dp", photon.raytracer_recursive_dp, 
-                         &framebuffer, &world64, &camera64, cpu_freq);
 
-	free(world32.spheres);
-	free(world32.materials);
+	free(world.spheres);
+	free(world.materials);
 
-    free(world64.spheres);
-    free(world64.materials);
-
-    create_world_case_obj(&world32,
+    create_world_case_obj(&world,
         aspect_ratio,
         framebuffer.width,
         framebuffer.height,
         50,
         10,
-        &camera32);
+        &camera);
 
-    create_world_case_obj(&world64,
-        aspect_ratio,
-        framebuffer.width,
-        framebuffer.height,
-        50,
-        10,
-        &camera64);
 
     run_raytracer_test_sp("iterative_sp_obj", photon.raytracer_iterative_sp, 
-                         &framebuffer, &world32, &camera32, cpu_freq);
+                         &framebuffer, &world, &camera, cpu_freq);
 
     run_raytracer_queue_test_sp("iterative_queue_sp_obj", photon.raytracer_queue_sp, &framebuffer,
-            &world32, &camera32, cpu_freq, 4);
+            &world, &camera, cpu_freq, 4);
 
-    run_raytracer_queue_test_dp("iterative_queue_dp_obj", photon.raytracer_queue_dp, &framebuffer,
-            &world64, &camera64, cpu_freq, 4);
-
-    free(world32.triangles);
-	// free(world32.spheres);
-	free(world32.materials);
-
-    free(world64.triangles);
-    free(world64.materials);
+    free(world.triangles);
+	free(world.materials);
 
 	free(framebuffer.data);
 	win32_unload_photon_dll(&photon);
